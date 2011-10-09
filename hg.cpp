@@ -1,110 +1,246 @@
 #include <iostream>
+#include <fstream>
 #include <stack>
 #include <vector>
+#include <cstdlib>
 
 using namespace std;
 
-const int n = 5; // number of edges
-const int k = 3; // edges value
+const unsigned int FIRST = 0;
 
-// dfs statuses
-enum { FRESH, OPEN, CLOSED } typedef status_t;
-
-// edges vector
-vector<int> typedef vector_t;
-
-// config type
-struct {
-    vector_t edges;
-    status_t statuses[n];
-} typedef config_t;
-
-// config stack
-stack<config_t> typedef stack_t;
-
-// edges
-int edges[n][n] = {
-    {0, 1, 1, 1, 0},
-    {1, 0, 1, 1, 1},
-    {1, 1, 0, 1, 1},
-    {1, 1, 1, 0, 0},
-    {0, 1, 1, 0, 0},
-};
+// dfs status
+enum {
+    FRESH, OPEN, CLOSED
+} typedef statusType;
 
 /**
- * Get valid if is valid state
- *
- * @param config_t config
- * @return int
+ * Graph class
  */
-int get_next(config_t config)
+class Graph
 {
-    for (int i = 1; i < n; i++) {
-        if (config.statuses[i] == FRESH && edges[config.edges.back()][i]) {
-            return i;
+    unsigned int n;
+    vector< vector<bool> > edge;
+
+    public:
+
+    /**
+     * Load graph from file
+     *
+     * @param const char *file
+     */
+    Graph(const char *file)
+    {
+        ifstream input(file);
+        input >> n;
+        for (unsigned int i = 0; i < n; i++) {
+            vector<bool> current_line;
+            for (unsigned int j = 0; j < n; j++) {
+                char tmp;
+                input >> tmp;
+                current_line.push_back(tmp == '1');
+            }
+            edge.push_back(current_line);
         }
     }
 
-    return 0;
-}
+    /**
+     * Get size
+     *
+     * @return unsigned 
+     */
+    unsigned int size()
+    {
+        return n;
+    }
+
+    /**
+     * Test if graph has edge
+     *
+     * @param unsigned from
+     * @param unsigned to
+     * @return bool
+     */
+    bool has_edge(unsigned int from, unsigned int to)
+    {
+        return edge.at(from).at(to);
+    }
+};
+
+/**
+ * Config class
+ */
+class Config
+{
+    vector<unsigned int> nodes;
+    vector<statusType> status;
+
+    /**
+     * Init status vector
+     *
+     * @param unsigned n
+     * @return void
+     */
+    void init(unsigned int n)
+    {
+        for (unsigned int i = 0; i < n; i++) {
+            status.push_back(FRESH);
+        }
+    }
+
+    public:
+
+    /**
+     * @param unsigned n
+     */
+    Config(unsigned int n)
+    {
+        init(n);
+    }
+
+    /**
+     * @param unsigned n
+     * @param Config parent
+     */
+    Config(unsigned int n, Config parent)
+    {
+        init(n);
+        for (unsigned int i = 0; i < parent.size(); i++) {
+            nodes.push_back(parent.nodes.at(i));
+            status[parent.nodes.at(i)] = OPEN;
+        }
+    }
+
+    /**
+     * Get size
+     *
+     * @return unsigned
+     */
+    unsigned int size()
+    {
+        return nodes.size();
+    }
+
+    /**
+     * Print nodes
+     *
+     * @return void
+     */
+    void print()
+    {
+        for (unsigned int i = 0; i < nodes.size(); i++) {
+            cout << " " << nodes.at(i);
+        }
+    }
+
+    /**
+     * Set status to open
+     *
+     * @param unsigned node
+     * @return void
+     */
+    void open(unsigned int node)
+    {
+        status.at(node) = OPEN;
+    }
+
+    /**
+     * Set status to closed
+     *
+     * @param unsigned node
+     * @return void
+     */
+    void close(unsigned int node)
+    {
+        status.at(node) = CLOSED;
+    }
+
+    /**
+     * Append node
+     *
+     * @param unsigned node
+     * @return void
+     */
+    void push(unsigned int node)
+    {
+        nodes.push_back(node);
+    }
+
+    /**
+     * Get last node
+     *
+     * @return unsigned
+     */
+    unsigned int back()
+    {
+        return nodes.back();
+    }
+
+    /**
+     * Get next possible node
+     *
+     * @param Graph graph
+     * @return unsigned
+     */
+    unsigned int next(Graph graph)
+    {
+        for (unsigned int i = 1; i < graph.size(); i++) {
+            if (status.at(i) == FRESH && graph.has_edge(nodes.back(), i)) {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+};
 
 /**
  * Main
  *
  * @return int
  */
-int main()
+int main(int argc, char **argv)
 {
-    stack_t stack;
-    config_t config;
-
-    for (int i = 0; i < n; i++) {
-        config.statuses[i] = FRESH;
+    if (argc != 4) {
+        cout << "usage: hg n k input" << endl;
+        return 0;
     }
 
-    config.statuses[0] = OPEN;
-    config.edges.push_back(0);
-    stack.push(config);
+    unsigned int n = (unsigned int) atoi(argv[1]);
+    //unsigned int k = (unsigned int) atoi(argv[2]);
+    Graph graph(argv[3]);
+
+    stack<Config> stack;
+    stack.push(Config(n));
+    stack.top().open(FIRST);
+    stack.top().push(FIRST);
 
     while (!stack.empty()) {
-        config_t current = stack.top();
-
-        if ((int) current.edges.size() == n) { // end state
-            if (edges[current.edges.back()][0]) { // valid state
-                cout << "Yes";
-                for (int i = 0; i < (int) current.edges.size(); i++) {
-                    cout << " " << current.edges.at(i);
-                }
+        Config current = stack.top();
+        if (current.size() == graph.size()) { // end state
+            if (graph.has_edge(current.back(), FIRST)) { // valid state
+                cout << "Yes!";
+                current.print();
                 cout << endl;
                 return 0;
             } else { // invalid state
                 stack.pop();
-                stack.top().statuses[current.edges.back()] = CLOSED;
+                stack.top().close(current.back());
             }
         } else {
-            int next = get_next(current);
+            unsigned int next = current.next(graph);
             if (next) {
-                current.statuses[next] = OPEN;
-
-                config_t next_config;
-                for (int i = 0; i < n; i++) {
-                    next_config.statuses[i] = FRESH;
-                }
-
-                for (int i = 0; i < (int) current.edges.size(); i++) {
-                    next_config.edges.push_back(current.edges.at(i));
-                    next_config.statuses[current.edges.at(i)] = OPEN;
-                }
-
-                next_config.edges.push_back(next);
-                stack.push(next_config);
+                current.open(next);
+                stack.push(Config(n, current));
+                stack.top().push(next);
             } else {
                 stack.pop();
-                stack.top().statuses[current.edges.back()] = CLOSED;
+                if (!stack.empty()) {
+                    stack.top().close(current.back());
+                }
             }
         }
     }
 
-    cout << "No way" << endl;
+    cout << "No way.." << endl;
     return 0;
 }
